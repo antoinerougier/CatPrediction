@@ -117,7 +117,7 @@ def promote_model_task(**context):
     mlflow.set_tracking_uri("http://mlflow:5000")
     client = mlflow.MlflowClient()
 
-    run_id = context["ti"].xcom_pull(key="run_id", task_ids="train_model")
+    # run_id = context["ti"].xcom_pull(key="run_id", task_ids="train_model")
     model_version = client.get_latest_versions("cat-dog-classifier", stages=["None"])[0]
 
     client.transition_model_version_stage(
