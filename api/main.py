@@ -16,41 +16,38 @@ from monitoring.database import SessionLocal, PredictionLog, init_db
 app = FastAPI(title="Cat vs Dog Classifier API")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 MODEL_PATH = "models/model.pt"
 CLASS_NAMES_PATH = "models/class_names.json"
 
-model = build_model(num_classes=2, freeze_backbone=True)
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-model.to(DEVICE)
-model.eval()
-
-# Remplace le chargement au démarrage par une fonction lazy
-model = None
-class_names = ["cat", "dog"]
-
-
-def get_model():
-    global model, class_names
-    if model is None:
-        if Path(CLASS_NAMES_PATH).exists():
-            with open(CLASS_NAMES_PATH) as f:
-                class_names = json.load(f)["class_names"]
-        m = build_model(num_classes=2, freeze_backbone=True)
-        m.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-        m.to(DEVICE)
-        m.eval()
-        model = m
-    return model, class_names
-
-
-transform = get_transforms(train=False)
+# Plus de chargement ici au niveau module
+_model = None
+_class_names = None
+_transform = get_transforms(train=False)
 
 init_db()
 
 
+def get_model():
+    global _model, _class_names
+    if _model is None:
+        if Path(CLASS_NAMES_PATH).exists():
+            with open(CLASS_NAMES_PATH) as f:
+                _class_names = json.load(f)["class_names"]
+        else:
+            _class_names = ["cat", "dog"]
+
+        m = build_model(num_classes=len(_class_names), freeze_backbone=True)
+        m.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+        m.to(DEVICE)
+        m.eval()
+        _model = m
+
+    return _model, _class_names
+
+
 @app.get("/")
 def root():
+    _, class_names = get_model()
     return {"message": "Cat vs Dog Classifier API", "classes": class_names}
 
 
@@ -68,22 +65,20 @@ async def predict(file: UploadFile = File(...)):
     except Exception:
         raise HTTPException(status_code=400, detail="Impossible de lire l'image.")
 
-    input_tensor = transform(image).unsqueeze(0).to(DEVICE)
+    input_tensor = _transform(image).unsqueeze(0).to(DEVICE)
 
-    current_model, class_names = get_model()
+    model, class_names = get_model()
     with torch.no_grad():
-        outputs = current_model(input_tensor)
+        outputs = model(input_tensor)
         probs = F.softmax(outputs, dim=1)[0]
 
     pred_idx = torch.argmax(probs).item()
     predicted_class = class_names[pred_idx]
     confidence = probs[pred_idx].item()
-
     prob_dict = {
         class_names[i]: round(probs[i].item(), 4) for i in range(len(class_names))
     }
 
-    # Log en base
     db = SessionLocal()
     log_entry = PredictionLog(
         predicted_class=predicted_class,
@@ -109,9 +104,7 @@ async def predict(file: UploadFile = File(...)):
 class FeedbackRequest(BaseModel):
     prediction_id: int
     correct: bool
-    true_class: str | None = (
-        None  # optionnel : si l'utilisateur sait quelle était la vraie classe
-    )
+    true_class: str | None = None
 
 
 @app.post("/feedback")
