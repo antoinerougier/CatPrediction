@@ -25,11 +25,24 @@ model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.to(DEVICE)
 model.eval()
 
-if Path(CLASS_NAMES_PATH).exists():
-    with open(CLASS_NAMES_PATH) as f:
-        class_names = json.load(f)["class_names"]
-else:
-    class_names = ["cat", "dog"]
+# Remplace le chargement au démarrage par une fonction lazy
+model = None
+class_names = ["cat", "dog"]
+
+
+def get_model():
+    global model, class_names
+    if model is None:
+        if Path(CLASS_NAMES_PATH).exists():
+            with open(CLASS_NAMES_PATH) as f:
+                class_names = json.load(f)["class_names"]
+        m = build_model(num_classes=2, freeze_backbone=True)
+        m.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+        m.to(DEVICE)
+        m.eval()
+        model = m
+    return model, class_names
+
 
 transform = get_transforms(train=False)
 
@@ -57,8 +70,9 @@ async def predict(file: UploadFile = File(...)):
 
     input_tensor = transform(image).unsqueeze(0).to(DEVICE)
 
+    current_model, class_names = get_model()
     with torch.no_grad():
-        outputs = model(input_tensor)
+        outputs = current_model(input_tensor)
         probs = F.softmax(outputs, dim=1)[0]
 
     pred_idx = torch.argmax(probs).item()
