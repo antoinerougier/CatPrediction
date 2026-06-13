@@ -24,7 +24,6 @@ def train_model_task(**context):
 
     sys.path.insert(0, "/opt/airflow/project")
     import torch
-    from torch.utils.data import DataLoader
     from src.dataset import get_dataloaders
     from src.model import build_model
     from src.train import train_one_epoch, evaluate
