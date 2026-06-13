@@ -1,0 +1,8 @@
+services:
+  api:
+    build: .
+    ports:
+      - "7788:7788"
+    volumes:
+      - ./monitoring:/app/monitoring  # pour persister la DB SQLite
+      - ./models:/app/models
