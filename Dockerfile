@@ -11,9 +11,7 @@ COPY src/ src/
 COPY api/ api/
 COPY monitoring/ monitoring/
 
-COPY models/ ./models/
-
-# Crée le dossier models/ vide si pas présent (le modèle sera monté via volume en prod)
+# Le modèle est monté via volume en prod, on crée juste le dossier vide
 RUN mkdir -p models/
 
 EXPOSE 7788
