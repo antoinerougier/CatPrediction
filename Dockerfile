@@ -11,6 +11,8 @@ COPY src/ src/
 COPY api/ api/
 COPY monitoring/ monitoring/
 
+COPY models/ ./models/
+
 # Crée le dossier models/ vide si pas présent (le modèle sera monté via volume en prod)
 RUN mkdir -p models/
 

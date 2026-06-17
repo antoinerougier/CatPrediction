@@ -21,4 +21,4 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run drift check
-        run: uv run python monitoring/drift_check.py
+        run: uv run python -m monitoring.drift_check

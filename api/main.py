@@ -124,3 +124,13 @@ def feedback(req: FeedbackRequest):
     db.close()
 
     return {"message": "Feedback enregistré, merci !"}
+
+
+@app.post("/square_number")
+def square(number: int):
+    return {"number": number, "square_number": number**2}
+
+
+@app.post("/sum")
+def somme(a: int, b: int):
+    return {"result": a + b}
